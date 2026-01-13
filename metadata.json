@@ -1,0 +1,5 @@
+{
+  "name": "LinguistAI - 智慧文本校正專家",
+  "description": "一個專業的線上文本偵測工具，支援 TXT, PDF, DOCX, PNG, JPG。利用 Gemini AI 深度分析文字，提供錯字檢查、冗贅詞刪減及語句流暢性優化建議。",
+  "requestFramePermissions": []
+}
