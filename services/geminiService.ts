@@ -2,27 +2,66 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, AnalysisConfig } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize GoogleGenAI with error handling
+let ai: GoogleGenAI | null = null;
+
+try {
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    ai = new GoogleGenAI({ apiKey });
+  } else {
+    console.warn("Gemini API key not found. Some features will be disabled.");
+  }
+} catch (error) {
+  console.error("Failed to initialize GoogleGenAI:", error);
+}
 
 export const extractTextFromImage = async (base64Data: string, mimeType: string): Promise<string> => {
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: [
-      {
-        parts: [
-          { inlineData: { data: base64Data, mimeType } },
-          { text: "請將這張圖片中的所有文字辨識出來，並以純文字格式回傳。請直接回傳辨識出的內容，不要包含任何前言、解釋或額外的標點符號標籤。請確保輸出為繁體中文。" }
-        ]
+  if (!ai) {
+    throw new Error("Gemini AI service not available. Please check your API key.");
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        {
+          parts: [
+            { inlineData: { data: base64Data, mimeType } },
+            { text: "請將這張圖片中的所有文字辨識出來，並以純文字格式回傳。請直接回傳辨識出的內容，不要包含任何前言、解釋或額外的標點符號標籤。請確保輸出為繁體中文。" }
+          ]
+        }
+      ]
+    });
+    return response.text || "";
+  } catch (error: any) {
+    console.error("Image text extraction failed:", error);
+
+    // Handle specific API errors
+    if (error.message && typeof error.message === 'string') {
+      // Check for quota exceeded error
+      if (error.message.includes('quota') || error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429')) {
+        throw new Error("API 配額已用盡，請稍後再試或檢查您的 API 金鑰配額。");
       }
-    ]
-  });
-  return response.text || "";
+
+      // Check for authentication errors
+      if (error.message.includes('API key') || error.message.includes('401') || error.message.includes('403')) {
+        throw new Error("API 金鑰無效或權限不足，請檢查您的設定。");
+      }
+    }
+
+    // Generic error message
+    throw new Error("影像文字辨識失敗，請稍後再試。");
+  }
 };
 
 export const analyzeText = async (
   text: string,
   config: AnalysisConfig
 ): Promise<AnalysisResult> => {
+  if (!ai) {
+    throw new Error("Gemini AI service not available. Please check your API key.");
+  }
   const revisionIntensity = [
     "",
     "【極低度修改】：僅針對絕對的錯誤（錯字、標點）進行修正，絕對不要更動任何語法或詞彙。",
@@ -33,12 +72,12 @@ export const analyzeText = async (
   ][config.revisionLevel];
 
   // 根據勾選狀態動態生成禁令
-  const redundancyRule = config.checkRedundancy 
-    ? `執行。僅刪除絕對多餘文字（修改強度：${config.revisionLevel}）。` 
+  const redundancyRule = config.checkRedundancy
+    ? `執行。僅刪除絕對多餘文字（修改強度：${config.revisionLevel}）。`
     : "【禁用】：嚴禁進行冗贅詞檢查。不論多麼囉唆，都必須原封不動保留。";
-  
-  const fluencyRule = config.checkFluency 
-    ? `執行。僅在必要時微調語句流暢度（修改強度：${config.revisionLevel}）。` 
+
+  const fluencyRule = config.checkFluency
+    ? `執行。僅在必要時微調語句流暢度（修改強度：${config.revisionLevel}）。`
     : "【禁用】：嚴禁進行流暢度優化。不論多麼不通順，都必須保留原句結構。";
 
   const prompt = `你是一位極其嚴謹且技術精湛的專業中文編輯。
@@ -76,35 +115,59 @@ ${text}
   "summary": "事實描述已執行的修正。"
 }`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          revisedText: { type: Type.STRING },
-          diffText: { type: Type.STRING },
-          summary: { type: Type.STRING },
-          issues: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                original: { type: Type.STRING },
-                suggested: { type: Type.STRING },
-                reason: { type: Type.STRING },
-                type: { type: Type.STRING },
+  let response;
+  try {
+    response = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            revisedText: { type: Type.STRING },
+            diffText: { type: Type.STRING },
+            summary: { type: Type.STRING },
+            issues: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  original: { type: Type.STRING },
+                  suggested: { type: Type.STRING },
+                  reason: { type: Type.STRING },
+                  type: { type: Type.STRING },
+                },
+                required: ["original", "suggested", "reason", "type"],
               },
-              required: ["original", "suggested", "reason", "type"],
             },
           },
+          required: ["revisedText", "diffText", "issues", "summary"],
         },
-        required: ["revisedText", "diffText", "issues", "summary"],
       },
-    },
-  });
+    });
+  } catch (error: any) {
+    console.error("Gemini API error:", error);
+
+    // Handle specific API errors
+    if (error.message && typeof error.message === 'string') {
+      // Check for quota exceeded error
+      if (error.message.includes('quota') || error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429')) {
+        throw new Error("API 配額已用盡，請稍後再試或檢查您的 API 金鑰配額。");
+      }
+
+      // Check for authentication errors
+      if (error.message.includes('API key') || error.message.includes('401') || error.message.includes('403')) {
+        throw new Error("API 金鑰無效或權限不足，請檢查您的設定。");
+      }
+
+      // Return a clean error message without JSON
+      throw new Error("API 請求失敗，請稍後再試。");
+    }
+
+    // Fallback for unexpected error formats
+    throw new Error("分析服務暫時無法使用，請稍後再試。");
+  }
 
   try {
     const data = JSON.parse(response.text || "{}");
