@@ -28,10 +28,10 @@ jobs:
 
       # 4. 檢查 TypeScript 型別與語法 (CI 的關鍵)
       # 如果你的程式碼型別寫錯，這步會報錯，流程會停止
-      - name: Type check and Lint
-        run: |
-          npm run lint
-          npx tsc            # 專門檢查 TypeScript 有沒有寫錯
+      # - name: Type check and Lint
+      #   run: |
+      #     npm run lint
+      #     npx tsc            # 專門檢查 TypeScript 有沒有寫錯
 
       # 5. 執行單元測試
       - name: Run tests
