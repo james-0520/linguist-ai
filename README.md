@@ -68,10 +68,16 @@
    
    在專案根目錄創建 `.env` 文件並添加您的 Gemini API Key：
    ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
+   GEMINI_API_KEY="your_gemini_api_key_here"
+   
+   # 選填：自訂使用的 Gemini 模型
+   GEMINI_IMAGE_MODEL="gemini-3-flash-preview"
+   GEMINI_TEXT_MODEL="gemini-3-pro-preview"
    ```
 
-   > 💡 **提示**：請確保 `.env` 文件已加入 `.gitignore`，避免洩露 API Key
+   > 💡 **提示**：
+   > - 請確保 `.env` 文件已加入 `.gitignore`，避免洩露 API Key
+   > - 模型設定為選填，不設定則使用系統預設值
 
 4. **啟動開發伺服器**
    ```bash
@@ -174,9 +180,23 @@ npm run preview
 
 在 `.env` 文件中配置以下變數：
 
-| 變數名稱 | 說明 | 範例 |
-|---------|------|------|
-| `GEMINI_API_KEY` | Google Gemini API 金鑰 | `AIzaSy...` |
+| 變數名稱 | 說明 | 預設值 | 範例 |
+|---------|------|-------|------|
+| `GEMINI_API_KEY` | Google Gemini API 金鑰（必填） | - | `AIzaSy...` |
+| `GEMINI_IMAGE_MODEL` | 圖片文字辨識使用的模型 | `gemini-3-flash-preview` | `gemini-3-flash-preview` |
+| `GEMINI_TEXT_MODEL` | 文字分析使用的模型 | `gemini-3-pro-preview` | `gemini-3-pro-preview` |
+
+### 範例 `.env` 配置
+
+```env
+GEMINI_API_KEY="your_gemini_api_key_here"
+
+# Gemini 模型設定（可選，使用預設值即可）
+GEMINI_IMAGE_MODEL="gemini-3-flash-preview"
+GEMINI_TEXT_MODEL="gemini-3-pro-preview"
+```
+
+> 💡 **提示**：如果不設定 `GEMINI_IMAGE_MODEL` 和 `GEMINI_TEXT_MODEL`，系統會自動使用預設模型。
 
 ---
 

@@ -5,6 +5,10 @@ import { AnalysisResult, AnalysisConfig } from "../types";
 // Initialize GoogleGenAI with error handling
 let ai: GoogleGenAI | null = null;
 
+// Read model names from environment variables with fallback defaults
+const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash';
+const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
+
 try {
   const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
   if (apiKey) {
@@ -23,7 +27,7 @@ export const extractTextFromImage = async (base64Data: string, mimeType: string)
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: GEMINI_IMAGE_MODEL,
       contents: [
         {
           parts: [
@@ -118,7 +122,7 @@ ${text}
   let response;
   try {
     response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: GEMINI_TEXT_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",

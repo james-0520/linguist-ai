@@ -1,0 +1,53 @@
+name: React TS CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 複製程式碼
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 安裝 Node.js 環境 (就像安裝 Python 一樣)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # 建議用最新的 LTS 版本
+          cache: 'npm'       # 自動幫你快取，下次跑會更快
+
+      # 3. 安裝套件 (等於 npm install)
+      - name: Install dependencies
+        run: npm ci          # 'ci' 比 'install' 更嚴格，適合自動化環境
+
+      # 4. 檢查 TypeScript 型別與語法 (CI 的關鍵)
+      # 如果你的程式碼型別寫錯，這步會報錯，流程會停止
+      - name: Type check and Lint
+        run: |
+          npm run lint
+          npx tsc            # 專門檢查 TypeScript 有沒有寫錯
+
+      # 5. 執行單元測試
+      - name: Run tests
+        run: npm test        # 注意：測試腳本必須是「跑完就結束」的模式
+        env:
+          CI: true           # 告訴 React 這是 CI 環境，不要開啟互動模式
+
+      # 6. 嘗試打包 (Build)
+      # 如果打包失敗，代表你的程式碼無法上線
+      - name: Build project
+        run: npm run build
+
+        # 7. 部署到 GitHub Pages (這是 CD 的部分)
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' # 只有 main 分支改動時才部署
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist # 如果你用 Vite，編譯後的資料夾叫 dist (CRA 則是 build)
+          branch: gh-pages # 把編譯好的靜態網頁推送到這個分支 

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { Switch } from './components/Switch';
 import { analyzeText, extractTextFromImage } from './services/geminiService';
@@ -12,10 +12,22 @@ const PROGRESS_MESSAGES = [
   "正在解析文本結構...",
   "識別上下文邏輯中...",
   "深度檢查語法完整性...",
+  // Redundancy check message, shown only if enabled
   "比對冗贅詞庫...",
+  // Fluency adjustment message, shown only if enabled
   "優化語句流暢度建議...",
   "正在生成最終報告..."
 ];
+
+// Helper to get visible progress messages based on current config
+const getVisibleProgressMessages = (config) => {
+  return PROGRESS_MESSAGES.filter((msg, idx) => {
+    // Index 3 corresponds to redundancy, index 4 to fluency
+    if (idx === 3) return config.checkRedundancy;
+    if (idx === 4) return config.checkFluency;
+    return true;
+  });
+};
 
 const App: React.FC = () => {
   const [inputText, setInputText] = useState('');
@@ -32,6 +44,9 @@ const App: React.FC = () => {
     revisionLevel: 3,
     stylePreference: '',
   });
+
+  // Compute visible progress messages based on current config, memoized to avoid recreating array each render
+  const visibleProgressMessages = useMemo(() => getVisibleProgressMessages(config), [config]);
   const [error, setError] = useState<string | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -66,14 +81,14 @@ const App: React.FC = () => {
       setProgressMsgIndex(0);
       interval = setInterval(() => {
         setProgress(prev => (prev < 95 ? prev + Math.random() * 3 : prev));
-        setProgressMsgIndex(prev => (prev + 1) % PROGRESS_MESSAGES.length);
+        setProgressMsgIndex(prev => (prev + 1) % visibleProgressMessages.length);
       }, 1500);
     } else {
       setProgress(100);
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isAnalyzing]);
+  }, [isAnalyzing, visibleProgressMessages]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -194,7 +209,7 @@ const App: React.FC = () => {
   };
 
   const getRevisionLevelLabel = (level: number) => {
-    switch(level) {
+    switch (level) {
       case 1: return "精確校正 (僅錯字標點)";
       case 2: return "輕度優化";
       case 3: return "平衡優化";
@@ -224,7 +239,7 @@ const App: React.FC = () => {
                 {isUploading && <span className="text-xs text-indigo-400 animate-pulse font-bold">辨識中...</span>}
               </div>
             </h2>
-            
+
             <textarea
               ref={textAreaRef}
               className="w-full h-80 p-4 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-white font-medium placeholder-slate-500"
@@ -251,11 +266,11 @@ const App: React.FC = () => {
               <span className="w-1.5 h-6 bg-purple-500 rounded-full"></span>
               選項設定
             </h2>
-            
+
             <div className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-slate-700">
-                  <Switch label="錯字與標點" checked={true} onChange={() => {}} disabled={true} />
+                  <Switch label="錯字與標點" checked={true} onChange={() => { }} disabled={true} />
                   <span className="text-[10px] bg-indigo-900/60 text-indigo-200 px-2 py-0.5 rounded-full font-bold">必選項目</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-slate-700">
@@ -271,10 +286,10 @@ const App: React.FC = () => {
                   <label className="text-xs font-bold text-slate-400 uppercase">修改幅度</label>
                   <span className="text-xs font-bold text-indigo-400">{getRevisionLevelLabel(config.revisionLevel)}</span>
                 </div>
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="5" 
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
                   step="1"
                   value={config.revisionLevel}
                   onChange={(e) => setConfig(p => ({ ...p, revisionLevel: parseInt(e.target.value) }))}
@@ -292,9 +307,9 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <button 
-              onClick={handleAnalyze} 
-              disabled={isAnalyzing || isUploading || !inputText.trim()} 
+            <button
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || isUploading || !inputText.trim()}
               className={`w-full mt-8 py-4 rounded-xl text-white font-bold text-lg shadow-lg transition-all transform active:scale-[0.98] ${isAnalyzing ? 'bg-slate-700 cursor-wait' : 'bg-gradient-to-r from-indigo-500 to-purple-500 hover:translate-y-[-2px]'}`}
             >
               {isAnalyzing ? '分析執行中...' : '開始校正'}
@@ -316,7 +331,7 @@ const App: React.FC = () => {
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-white text-lg font-bold animate-pulse">{PROGRESS_MESSAGES[progressMsgIndex]}</p>
+                <p className="text-white text-lg font-bold animate-pulse">{visibleProgressMessages[progressMsgIndex]}</p>
                 <p className="text-slate-500 text-xs mt-2 font-bold uppercase">Powered by Gemini 3 Pro</p>
               </div>
             </div>
