@@ -37,10 +37,10 @@ jobs:
       #     npx tsc            # 專門檢查 TypeScript 有沒有寫錯
 
       # 5. 執行單元測試
-      # - name: Run tests
-      #   run: npm test        # 注意：測試腳本必須是「跑完就結束」的模式
-      #   env:
-      #     CI: true           # 告訴 React 這是 CI 環境，不要開啟互動模式
+      - name: Run tests
+        run: npm test        # 注意：測試腳本必須是「跑完就結束」的模式
+        env:
+          CI: true           # 告訴 React 這是 CI 環境，不要開啟互動模式
 
       # 6. 嘗試打包 (Build)
       # 如果打包失敗，代表你的程式碼無法上線
